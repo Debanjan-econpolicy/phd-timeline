@@ -8,6 +8,10 @@ export default function App() {
   const [editingTask, setEditingTask] = useState(null);
   const [editingMilestone, setEditingMilestone] = useState(null);
   
+  // Timeline window controls
+  const [timelineStart, setTimelineStart] = useState({ month: 10, year: 2025 });
+  const [timelineEnd, setTimelineEnd] = useState({ month: 12, year: 2026 });
+  
   const getInitialTasks = () => {
     const saved = localStorage.getItem('phdTimelineTasks');
     if (saved) return JSON.parse(saved);
@@ -123,12 +127,17 @@ export default function App() {
   }, [pomodoroActive, isBreak, workMinutes, breakMinutes, longBreakMinutes, pomodoroCount, selectedSubtask, selectedDate]);
 
   const generateTimeline = () => {
-    const minYear = Math.min(...tasks.map(t => Math.min(t.startYear, t.endYear)), 2025);
-    const maxYear = Math.max(...tasks.map(t => Math.max(t.startYear, t.endYear)), 2026);
-    
     const timeline = [];
-    for (let year = minYear; year <= maxYear; year++) {
-      for (let month = 1; month <= 12; month++) {
+    const startYear = timelineStart.year;
+    const endYear = timelineEnd.year;
+    const startMonth = timelineStart.month;
+    const endMonth = timelineEnd.month;
+    
+    for (let year = startYear; year <= endYear; year++) {
+      const firstMonth = (year === startYear) ? startMonth : 1;
+      const lastMonth = (year === endYear) ? endMonth : 12;
+      
+      for (let month = firstMonth; month <= lastMonth; month++) {
         const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
         const weeks = [1, 3, 5, 7, 8, 10, 12].includes(month) ? 5 : 4;
         timeline.push({
@@ -378,15 +387,21 @@ export default function App() {
     setTimeout(() => setIsPrinting(false), 500);
   };
 
-  const allSubtasks = tasks.flatMap(task => 
-    task.subtasks.map(subtask => ({
-      taskId: task.id,
-      subtaskId: subtask.id,
-      taskName: task.name,
-      subtaskName: subtask.name,
-      taskColor: task.color
-    }))
-  );
+  // Collect ALL subtasks from ALL tasks - this ensures subtasks always show
+  const allSubtasks = [];
+  tasks.forEach(task => {
+    if (task.subtasks && task.subtasks.length > 0) {
+      task.subtasks.forEach(subtask => {
+        allSubtasks.push({
+          taskId: task.id,
+          subtaskId: subtask.id,
+          taskName: task.name,
+          subtaskName: subtask.name,
+          taskColor: task.color
+        });
+      });
+    }
+  });
 
   return (
     <div className="p-6 max-w-full mx-auto bg-gray-50">
@@ -459,6 +474,39 @@ export default function App() {
 
         {activeTab === 'gantt' && (
           <>
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6 no-print">
+              <h3 className="font-semibold mb-3 text-blue-900">Timeline Window Settings</h3>
+              <div className="flex items-center gap-4">
+                <div>
+                  <label className="block text-sm mb-1">Start Date:</label>
+                  <input 
+                    type="month" 
+                    value={`${timelineStart.year}-${String(timelineStart.month).padStart(2, '0')}`}
+                    onChange={(e) => {
+                      const [year, month] = e.target.value.split('-');
+                      setTimelineStart({ month: parseInt(month), year: parseInt(year) });
+                    }}
+                    className="px-3 py-2 border border-gray-300 rounded-md"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm mb-1">End Date:</label>
+                  <input 
+                    type="month" 
+                    value={`${timelineEnd.year}-${String(timelineEnd.month).padStart(2, '0')}`}
+                    onChange={(e) => {
+                      const [year, month] = e.target.value.split('-');
+                      setTimelineEnd({ month: parseInt(month), year: parseInt(year) });
+                    }}
+                    className="px-3 py-2 border border-gray-300 rounded-md"
+                  />
+                </div>
+                <div className="text-sm text-gray-600">
+                  <span className="font-semibold">{timeline.length}</span> months displayed
+                </div>
+              </div>
+            </div>
+
             <div className="bg-gray-50 rounded-lg p-4 mb-6 no-print">
               <h2 className="text-lg font-semibold mb-3 text-gray-700">Add New Task</h2>
               <div className="grid grid-cols-1 md:grid-cols-6 gap-3">
@@ -1098,7 +1146,9 @@ export default function App() {
                     </div>
                   )}
                   {allSubtasks.length === 0 && (
-                    <p className="text-xs text-gray-500 mt-2">Add subtasks to your tasks in the Gantt Chart tab first</p>
+                    <p className="text-xs text-red-500 mt-2 font-semibold">
+                      No subtasks available. Go to Gantt Chart tab, expand a task (click arrow), and click "Add Subtask"
+                    </p>
                   )}
                 </div>
 
