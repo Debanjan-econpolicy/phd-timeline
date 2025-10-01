@@ -1,22 +1,27 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Calendar, Plus, Trash2, ChevronDown, ChevronRight, AlertCircle, CheckCircle, Clock, Save, Play, Pause, RotateCcw, Printer, Flag, TrendingUp } from 'lucide-react';
+import { Calendar, Plus, Trash2, ChevronDown, ChevronRight, Save, Play, Pause, RotateCcw, Printer, Flag, TrendingUp, Edit2, Check, X } from 'lucide-react';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState('gantt');
   const [lastSaved, setLastSaved] = useState(null);
   const [isPrinting, setIsPrinting] = useState(false);
+  const [editingTask, setEditingTask] = useState(null);
+  const [editingMilestone, setEditingMilestone] = useState(null);
   
   const getInitialTasks = () => {
     const saved = localStorage.getItem('phdTimelineTasks');
     if (saved) return JSON.parse(saved);
     return [
-      { id: 1, name: 'MGP Paper', startMonth: 10, startWeek: 1, endMonth: 12, endWeek: 1, color: 'bg-blue-500', priority: 'high', expanded: false, subtasks: [
+      { id: 1, name: 'MGP Paper', startMonth: 10, startYear: 2025, startWeek: 1, endMonth: 12, endYear: 2025, endWeek: 1, color: 'bg-blue-500', priority: 'high', expanded: false, subtasks: [
         { id: 101, name: 'Literature Review', completed: true },
         { id: 102, name: 'Data Analysis', completed: true },
         { id: 103, name: 'Writing Draft', completed: false }
       ]},
-      { id: 2, name: 'NEFF Paper', startMonth: 12, startWeek: 2, endMonth: 2, endWeek: 2, color: 'bg-purple-500', priority: 'medium', expanded: false, subtasks: [] },
-      { id: 3, name: 'Honesty Paper', startMonth: 11, startWeek: 3, endMonth: 3, endWeek: 4, color: 'bg-orange-500', priority: 'low', expanded: false, subtasks: [] }
+      { id: 2, name: 'NEFF Paper', startMonth: 12, startYear: 2025, startWeek: 2, endMonth: 2, endYear: 2026, endWeek: 2, color: 'bg-purple-500', priority: 'medium', expanded: false, subtasks: [
+        { id: 201, name: 'Research Design', completed: false },
+        { id: 202, name: 'Data Collection', completed: false }
+      ]},
+      { id: 3, name: 'Honesty Paper', startMonth: 11, startYear: 2025, startWeek: 3, endMonth: 3, endYear: 2026, endWeek: 4, color: 'bg-orange-500', priority: 'low', expanded: false, subtasks: [] }
     ];
   };
 
@@ -43,10 +48,10 @@ export default function App() {
   const [dailyTasks, setDailyTasks] = useState(getInitialDailyTasks);
   const [pomodoroSessions, setPomodoroSessions] = useState(getInitialPomodoros);
   
-  const [newTask, setNewTask] = useState({ name: '', startMonth: 10, startWeek: 1, endMonth: 10, endWeek: 4, priority: 'medium' });
+  const [newTask, setNewTask] = useState({ name: '', startMonth: 10, startYear: 2025, startWeek: 1, endMonth: 10, endYear: 2025, endWeek: 4, priority: 'medium' });
   const [newSubtask, setNewSubtask] = useState('');
   const [addingSubtaskTo, setAddingSubtaskTo] = useState(null);
-  const [newMilestone, setNewMilestone] = useState({ name: '', month: 10, week: 1 });
+  const [newMilestone, setNewMilestone] = useState({ name: '', month: 10, year: 2025, week: 1 });
   const [showMilestoneForm, setShowMilestoneForm] = useState(false);
 
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
@@ -117,23 +122,27 @@ export default function App() {
     return () => clearInterval(intervalRef.current);
   }, [pomodoroActive, isBreak, workMinutes, breakMinutes, longBreakMinutes, pomodoroCount, selectedSubtask, selectedDate]);
 
-  const timeline = [
-    { month: 'Oct 2025', weeks: 4, monthNum: 10, year: 2025 },
-    { month: 'Nov 2025', weeks: 4, monthNum: 11, year: 2025 },
-    { month: 'Dec 2025', weeks: 5, monthNum: 12, year: 2025 },
-    { month: 'Jan 2026', weeks: 4, monthNum: 1, year: 2026 },
-    { month: 'Feb 2026', weeks: 4, monthNum: 2, year: 2026 },
-    { month: 'Mar 2026', weeks: 4, monthNum: 3, year: 2026 },
-    { month: 'Apr 2026', weeks: 4, monthNum: 4, year: 2026 },
-    { month: 'May 2026', weeks: 5, monthNum: 5, year: 2026 },
-    { month: 'Jun 2026', weeks: 4, monthNum: 6, year: 2026 },
-    { month: 'Jul 2026', weeks: 4, monthNum: 7, year: 2026 },
-    { month: 'Aug 2026', weeks: 4, monthNum: 8, year: 2026 },
-    { month: 'Sep 2026', weeks: 5, monthNum: 9, year: 2026 },
-    { month: 'Oct 2026', weeks: 4, monthNum: 10, year: 2026 },
-    { month: 'Nov 2026', weeks: 4, monthNum: 11, year: 2026 },
-    { month: 'Dec 2026', weeks: 4, monthNum: 12, year: 2026 }
-  ];
+  const generateTimeline = () => {
+    const minYear = Math.min(...tasks.map(t => Math.min(t.startYear, t.endYear)), 2025);
+    const maxYear = Math.max(...tasks.map(t => Math.max(t.startYear, t.endYear)), 2026);
+    
+    const timeline = [];
+    for (let year = minYear; year <= maxYear; year++) {
+      for (let month = 1; month <= 12; month++) {
+        const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        const weeks = [1, 3, 5, 7, 8, 10, 12].includes(month) ? 5 : 4;
+        timeline.push({
+          month: `${monthNames[month - 1]} ${year}`,
+          weeks: weeks,
+          monthNum: month,
+          year: year
+        });
+      }
+    }
+    return timeline;
+  };
+
+  const timeline = generateTimeline();
 
   const getWeekPosition = (monthNum, weekNum, year) => {
     let position = 0;
@@ -148,10 +157,8 @@ export default function App() {
   };
 
   const getTaskSpan = (task) => {
-    const startYear = task.startMonth >= 10 ? 2025 : 2026;
-    const endYear = task.endMonth < 10 ? 2026 : (task.endMonth === 10 && startYear === 2026) ? 2026 : 2025;
-    const startPos = getWeekPosition(task.startMonth, task.startWeek, startYear);
-    const endPos = getWeekPosition(task.endMonth, task.endWeek, endYear);
+    const startPos = getWeekPosition(task.startMonth, task.startWeek, task.startYear);
+    const endPos = getWeekPosition(task.endMonth, task.endWeek, task.endYear);
     return { start: startPos, duration: endPos - startPos + 1 };
   };
 
@@ -167,11 +174,37 @@ export default function App() {
     return 'bg-red-500';
   };
 
+  const startEditTask = (task) => {
+    setEditingTask({ ...task });
+  };
+
+  const saveEditTask = () => {
+    setTasks(tasks.map(t => t.id === editingTask.id ? editingTask : t));
+    setEditingTask(null);
+  };
+
+  const cancelEditTask = () => {
+    setEditingTask(null);
+  };
+
+  const startEditMilestone = (milestone) => {
+    setEditingMilestone({ ...milestone });
+  };
+
+  const saveEditMilestone = () => {
+    setMilestones(milestones.map(m => m.id === editingMilestone.id ? editingMilestone : m));
+    setEditingMilestone(null);
+  };
+
+  const cancelEditMilestone = () => {
+    setEditingMilestone(null);
+  };
+
   const addTask = () => {
     if (newTask.name.trim()) {
       const colors = ['bg-blue-500', 'bg-purple-500', 'bg-green-500', 'bg-yellow-500', 'bg-orange-500', 'bg-red-500'];
       setTasks([...tasks, { id: Date.now(), ...newTask, color: colors[Math.floor(Math.random() * colors.length)], expanded: false, subtasks: [] }]);
-      setNewTask({ name: '', startMonth: 10, startWeek: 1, endMonth: 10, endWeek: 4, priority: 'medium' });
+      setNewTask({ name: '', startMonth: 10, startYear: 2025, startWeek: 1, endMonth: 10, endYear: 2025, endWeek: 4, priority: 'medium' });
     }
   };
 
@@ -200,7 +233,7 @@ export default function App() {
   const addMilestone = () => {
     if (newMilestone.name.trim()) {
       setMilestones([...milestones, { id: Date.now(), ...newMilestone }]);
-      setNewMilestone({ name: '', month: 10, week: 1 });
+      setNewMilestone({ name: '', month: 10, year: 2025, week: 1 });
       setShowMilestoneForm(false);
     }
   };
@@ -345,12 +378,43 @@ export default function App() {
     setTimeout(() => setIsPrinting(false), 500);
   };
 
+  const allSubtasks = tasks.flatMap(task => 
+    task.subtasks.map(subtask => ({
+      taskId: task.id,
+      subtaskId: subtask.id,
+      taskName: task.name,
+      subtaskName: subtask.name,
+      taskColor: task.color
+    }))
+  );
+
   return (
     <div className="p-6 max-w-full mx-auto bg-gray-50">
       <style>{`
         @media print {
+          @page { 
+            size: A4 landscape; 
+            margin: 10mm;
+          }
           .no-print { display: none !important; }
-          body { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+          body { 
+            print-color-adjust: exact; 
+            -webkit-print-color-adjust: exact;
+            margin: 0;
+            padding: 0;
+          }
+          .print-container {
+            width: 100%;
+            height: 100%;
+            page-break-inside: avoid;
+          }
+          .gantt-table {
+            font-size: 8pt;
+          }
+          .task-bar {
+            print-color-adjust: exact;
+            -webkit-print-color-adjust: exact;
+          }
         }
       `}</style>
       
@@ -358,7 +422,7 @@ export default function App() {
         <source src="data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhBSuBzvLZiTcIGWi77eefTRAMUKfj8LZjHAY4ktfyzHksBSR3x/DdkEAKFF606+uoVRQKRp/g8r5sIQUrj8zw3JBAChhfu+jnmkkTA0+l4e+zYBoFMYvR8c2EOgcdf8rx2YhFDBhfvefmqVEQC06g4OyjVhcEOZPU8cx8LQQmdMPu2o9BAQxatunjuVkSCUqf4PK8aB8EKoHM8tuJNwgZbLvs559NEAxQpu3uz2wbBDKK0fDMeywFJ2/A69qQQwoTYq/n5qpTEQpLn+Hyu2kgBSuPzPDckEAKGGC76OiZSRMDT6Th77NgGgUxi9LxyoU6Bx5/yvHZiUUMF2C84udqVRIJSp/i87xtJAUrd8Pt144+CwZZsujnsVsTBkqd3vO3ZhsFMYjO8ciDOQYffMjr1INECxRguObmrVUSCUub4fO9ayIFLYHI79aJOwcccLrr5KBSFQ1NoN7xsmEaBTCMz/HJhDsIH3zI69SCRAwXYrfm5qxUEwlJnuL0vG0jBS+Ax+/ZizoHHHG76+KfUxUNTqHe8bJhGQUvjM/xyYQ7CB58x+rUg0QMGGO45+erVBMISZ7i9LptIwUuf8fu2Ys9BxtyuOrioVQUDk2g3u+xYRsFLorN8ciDOgcef8jq1YRGDBZiuOXnq1UUCUme4/O5ayQFLoDH7tiKPAcbcrjq4qBTFAxOod7vsWEcBTCKzvDHhDsHH37H6tWERgwVY7bm56xWFAlKnuP0uWwkBS+Bx+7YizoHG3K46+KgUhQMTZ/e77FhGwUwis7wx4Q7Bx99x+vVhEYMFWO35+etVxQJS57j9LpuJQUugcfu14s8BxtyuOvhoFIUDE2f3u+xYRsFMIrO8MeEOwcffMfq1IRFDBVktubmrFYTCkue5PS6bSQFLoHH7taLPAYbcrrq4Z9RFAZNo97vsV8aBTCKzfLHgzsGH3vH6tWERQwVZLfm5qtWFApLnuP0umwjBS2Cx+7WijwHG3K66+KfUhQMTJ/e77BfGgQwiM7wx4M7Bx98x+vVhEUMFGS35uarVRMJS57k9LpsIwUtgsfv1oo8BxpyuuvhoFIVDEyf3vCwXxoFMIjO8MeDOwcffMfr1IRFDBRjt+bmqVUSCUud4/S6bCIFLYLH79eKPQcbcrjq4p9SFQxNn97vsWEaBTCIzvDHgzoHH33I6tWERQwUZLbl56tVEwlLneP0um4kBS6Bxu/YizwGG3K66+GfUhMMTZ/e8bFhGgUxic7xyIM7Bx99yOrVhEUMFWS25uarVhIJS53j9LpsIgUtgcfv14o8BxtsuuvhoFMVDE2f3u+wYBoEMInO8MiEOwcefcfq1YRFDBVjtuXmq1YTCkud4/S6bSIFLYLI79eKPQcbcrjq4p9SFAxMn97vsWAaBDCKzvDIgzoHHnzH6tWERQwVY7fl5qtVFApLnuT0um0jBS2Bx+/Xij0HGnK46+KfURQMTZ/e77FgGgQwis7wyYM6Bx58x+rVhEUMFWO25earVRMJS57j9LpuIwUtgsfv14o9Bhty" type="audio/wav" />
       </audio>
       
-      <div className="bg-white rounded-lg shadow-lg p-6 mb-6">
+      <div className="bg-white rounded-lg shadow-lg p-6 mb-6 print-container">
         <div className="flex items-center justify-between mb-6 no-print">
           <div className="flex items-center gap-3">
             <Calendar className="w-8 h-8 text-blue-600" />
@@ -397,7 +461,7 @@ export default function App() {
           <>
             <div className="bg-gray-50 rounded-lg p-4 mb-6 no-print">
               <h2 className="text-lg font-semibold mb-3 text-gray-700">Add New Task</h2>
-              <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
+              <div className="grid grid-cols-1 md:grid-cols-6 gap-3">
                 <div className="md:col-span-2">
                   <input 
                     type="text" 
@@ -407,54 +471,58 @@ export default function App() {
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" 
                   />
                 </div>
-                <div className="grid grid-cols-2 gap-2">
-                  <select 
-                    value={newTask.startMonth} 
-                    onChange={(e) => setNewTask({ ...newTask, startMonth: parseInt(e.target.value) })} 
-                    className="px-2 py-2 border border-gray-300 rounded-md text-sm"
-                  >
-                    {timeline.map((t, i) => (
-                      <option key={i} value={t.monthNum}>{t.month}</option>
-                    ))}
-                  </select>
+                <div>
+                  <input 
+                    type="month" 
+                    value={`${newTask.startYear}-${String(newTask.startMonth).padStart(2, '0')}`}
+                    onChange={(e) => {
+                      const [year, month] = e.target.value.split('-');
+                      setNewTask({ ...newTask, startMonth: parseInt(month), startYear: parseInt(year) });
+                    }}
+                    className="w-full px-2 py-2 border border-gray-300 rounded-md text-sm"
+                  />
+                </div>
+                <div>
                   <select 
                     value={newTask.startWeek} 
                     onChange={(e) => setNewTask({ ...newTask, startWeek: parseInt(e.target.value) })} 
-                    className="px-2 py-2 border border-gray-300 rounded-md text-sm"
+                    className="w-full px-2 py-2 border border-gray-300 rounded-md text-sm"
                   >
                     {[1, 2, 3, 4, 5].map(w => (
-                      <option key={w} value={w}>W{w}</option>
+                      <option key={w} value={w}>Week {w}</option>
                     ))}
                   </select>
                 </div>
-                <div className="grid grid-cols-2 gap-2">
-                  <select 
-                    value={newTask.endMonth} 
-                    onChange={(e) => setNewTask({ ...newTask, endMonth: parseInt(e.target.value) })} 
-                    className="px-2 py-2 border border-gray-300 rounded-md text-sm"
-                  >
-                    {timeline.map((t, i) => (
-                      <option key={i} value={t.monthNum}>{t.month}</option>
-                    ))}
-                  </select>
+                <div>
+                  <input 
+                    type="month" 
+                    value={`${newTask.endYear}-${String(newTask.endMonth).padStart(2, '0')}`}
+                    onChange={(e) => {
+                      const [year, month] = e.target.value.split('-');
+                      setNewTask({ ...newTask, endMonth: parseInt(month), endYear: parseInt(year) });
+                    }}
+                    className="w-full px-2 py-2 border border-gray-300 rounded-md text-sm"
+                  />
+                </div>
+                <div>
                   <select 
                     value={newTask.endWeek} 
                     onChange={(e) => setNewTask({ ...newTask, endWeek: parseInt(e.target.value) })} 
-                    className="px-2 py-2 border border-gray-300 rounded-md text-sm"
+                    className="w-full px-2 py-2 border border-gray-300 rounded-md text-sm"
                   >
                     {[1, 2, 3, 4, 5].map(w => (
-                      <option key={w} value={w}>W{w}</option>
+                      <option key={w} value={w}>Week {w}</option>
                     ))}
                   </select>
                 </div>
-                <button 
-                  onClick={addTask} 
-                  className="px-3 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 flex items-center justify-center gap-1"
-                >
-                  <Plus className="w-4 h-4" />
-                  Add Task
-                </button>
               </div>
+              <button 
+                onClick={addTask} 
+                className="mt-3 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 flex items-center gap-1"
+              >
+                <Plus className="w-4 h-4" />
+                Add Task
+              </button>
             </div>
 
             <div className="mb-4 no-print">
@@ -466,43 +534,99 @@ export default function App() {
                 {showMilestoneForm ? 'Hide' : 'Add'} Milestone
               </button>
               {showMilestoneForm && (
-                <div className="mt-3 bg-purple-50 p-4 rounded-lg flex gap-3">
-                  <input 
-                    type="text" 
-                    placeholder="Milestone name" 
-                    value={newMilestone.name} 
-                    onChange={(e) => setNewMilestone({ ...newMilestone, name: e.target.value })} 
-                    className="flex-1 px-3 py-2 border border-gray-300 rounded-md" 
-                  />
-                  <select 
-                    value={newMilestone.month} 
-                    onChange={(e) => setNewMilestone({ ...newMilestone, month: parseInt(e.target.value) })} 
-                    className="px-3 py-2 border border-gray-300 rounded-md"
-                  >
-                    {timeline.map((t, i) => (
-                      <option key={i} value={t.monthNum}>{t.month}</option>
-                    ))}
-                  </select>
-                  <select 
-                    value={newMilestone.week} 
-                    onChange={(e) => setNewMilestone({ ...newMilestone, week: parseInt(e.target.value) })} 
-                    className="px-3 py-2 border border-gray-300 rounded-md"
-                  >
-                    {[1, 2, 3, 4, 5].map(w => (
-                      <option key={w} value={w}>W{w}</option>
-                    ))}
-                  </select>
-                  <button 
-                    onClick={addMilestone} 
-                    className="px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700"
-                  >
-                    Add
-                  </button>
+                <div className="mt-3 bg-purple-50 p-4 rounded-lg">
+                  <div className="flex gap-3 mb-3">
+                    <input 
+                      type="text" 
+                      placeholder="Milestone name" 
+                      value={newMilestone.name} 
+                      onChange={(e) => setNewMilestone({ ...newMilestone, name: e.target.value })} 
+                      className="flex-1 px-3 py-2 border border-gray-300 rounded-md" 
+                    />
+                    <input 
+                      type="month" 
+                      value={`${newMilestone.year}-${String(newMilestone.month).padStart(2, '0')}`}
+                      onChange={(e) => {
+                        const [year, month] = e.target.value.split('-');
+                        setNewMilestone({ ...newMilestone, month: parseInt(month), year: parseInt(year) });
+                      }}
+                      className="px-3 py-2 border border-gray-300 rounded-md"
+                    />
+                    <select 
+                      value={newMilestone.week} 
+                      onChange={(e) => setNewMilestone({ ...newMilestone, week: parseInt(e.target.value) })} 
+                      className="px-3 py-2 border border-gray-300 rounded-md"
+                    >
+                      {[1, 2, 3, 4, 5].map(w => (
+                        <option key={w} value={w}>Week {w}</option>
+                      ))}
+                    </select>
+                    <button 
+                      onClick={addMilestone} 
+                      className="px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700"
+                    >
+                      Add
+                    </button>
+                  </div>
+                  
+                  {milestones.length > 0 && (
+                    <div className="space-y-2">
+                      <h4 className="font-semibold text-sm">Existing Milestones:</h4>
+                      {milestones.map(m => (
+                        <div key={m.id} className="flex items-center justify-between bg-white p-2 rounded border">
+                          {editingMilestone?.id === m.id ? (
+                            <>
+                              <input 
+                                type="text" 
+                                value={editingMilestone.name} 
+                                onChange={(e) => setEditingMilestone({ ...editingMilestone, name: e.target.value })}
+                                className="flex-1 px-2 py-1 border rounded mr-2"
+                              />
+                              <input 
+                                type="month" 
+                                value={`${editingMilestone.year}-${String(editingMilestone.month).padStart(2, '0')}`}
+                                onChange={(e) => {
+                                  const [year, month] = e.target.value.split('-');
+                                  setEditingMilestone({ ...editingMilestone, month: parseInt(month), year: parseInt(year) });
+                                }}
+                                className="px-2 py-1 border rounded mr-2"
+                              />
+                              <select 
+                                value={editingMilestone.week}
+                                onChange={(e) => setEditingMilestone({ ...editingMilestone, week: parseInt(e.target.value) })}
+                                className="px-2 py-1 border rounded mr-2"
+                              >
+                                {[1, 2, 3, 4, 5].map(w => (
+                                  <option key={w} value={w}>W{w}</option>
+                                ))}
+                              </select>
+                              <button onClick={saveEditMilestone} className="text-green-600 hover:text-green-800 mr-1">
+                                <Check className="w-4 h-4" />
+                              </button>
+                              <button onClick={cancelEditMilestone} className="text-gray-600 hover:text-gray-800">
+                                <X className="w-4 h-4" />
+                              </button>
+                            </>
+                          ) : (
+                            <>
+                              <span className="flex-1">{m.name} - {timeline.find(t => t.monthNum === m.month && t.year === m.year)?.month || `${m.month}/${m.year}`} W{m.week}</span>
+                              <button onClick={() => startEditMilestone(m)} className="text-blue-600 hover:text-blue-800 mr-2">
+                                <Edit2 className="w-4 h-4" />
+                              </button>
+                              <button onClick={() => deleteMilestone(m.id)} className="text-red-600 hover:text-red-800">
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}
             </div>
 
-            <div className="overflow-x-auto border rounded-lg">
+            <div className="overflow-x-auto border rounded-lg gantt-table">
               <div className="inline-block min-w-full">
                 <div className="sticky top-0 bg-white z-10">
                   <div className="flex border-b border-gray-300">
@@ -541,53 +665,112 @@ export default function App() {
                 {tasks.map((task) => {
                   const span = getTaskSpan(task);
                   const progress = calculateProgress(task);
+                  const isEditing = editingTask?.id === task.id;
                   
                   return (
                     <div key={task.id}>
                       <div className="flex border-b border-gray-200 hover:bg-blue-50 group">
                         <div className="w-64 flex-shrink-0 bg-white sticky left-0 border-r border-gray-300">
-                          <div className="p-3 flex items-center justify-between">
-                            <div className="flex items-center gap-2 flex-1">
-                              {task.subtasks.length > 0 && (
-                                <button 
-                                  onClick={() => toggleExpand(task.id)} 
-                                  className="text-gray-600 no-print"
-                                >
-                                  {task.expanded ? (
-                                    <ChevronDown className="w-4 h-4" />
-                                  ) : (
-                                    <ChevronRight className="w-4 h-4" />
-                                  )}
-                                </button>
-                              )}
-                              <div className="flex-1">
-                                <div className="text-sm font-semibold text-gray-800">{task.name}</div>
-                                {task.subtasks.length > 0 && (
-                                  <div className="flex items-center gap-2 mt-1">
-                                    <div className="flex-1 bg-gray-200 rounded-full h-2">
-                                      <div 
-                                        className={`h-2 rounded-full ${getProgressColor(progress)}`} 
-                                        style={{ width: `${progress}%` }} 
-                                      />
-                                    </div>
-                                    <span className="text-xs text-gray-600">{progress}%</span>
-                                  </div>
-                                )}
+                          <div className="p-3">
+                            {isEditing ? (
+                              <div className="space-y-2">
+                                <input 
+                                  type="text" 
+                                  value={editingTask.name}
+                                  onChange={(e) => setEditingTask({ ...editingTask, name: e.target.value })}
+                                  className="w-full px-2 py-1 border rounded text-sm"
+                                />
+                                <div className="flex gap-2">
+                                  <input 
+                                    type="month" 
+                                    value={`${editingTask.startYear}-${String(editingTask.startMonth).padStart(2, '0')}`}
+                                    onChange={(e) => {
+                                      const [year, month] = e.target.value.split('-');
+                                      setEditingTask({ ...editingTask, startMonth: parseInt(month), startYear: parseInt(year) });
+                                    }}
+                                    className="flex-1 px-1 py-1 border rounded text-xs"
+                                  />
+                                  <select 
+                                    value={editingTask.startWeek}
+                                    onChange={(e) => setEditingTask({ ...editingTask, startWeek: parseInt(e.target.value) })}
+                                    className="px-1 py-1 border rounded text-xs"
+                                  >
+                                    {[1, 2, 3, 4, 5].map(w => <option key={w} value={w}>W{w}</option>)}
+                                  </select>
+                                </div>
+                                <div className="flex gap-2">
+                                  <input 
+                                    type="month" 
+                                    value={`${editingTask.endYear}-${String(editingTask.endMonth).padStart(2, '0')}`}
+                                    onChange={(e) => {
+                                      const [year, month] = e.target.value.split('-');
+                                      setEditingTask({ ...editingTask, endMonth: parseInt(month), endYear: parseInt(year) });
+                                    }}
+                                    className="flex-1 px-1 py-1 border rounded text-xs"
+                                  />
+                                  <select 
+                                    value={editingTask.endWeek}
+                                    onChange={(e) => setEditingTask({ ...editingTask, endWeek: parseInt(e.target.value) })}
+                                    className="px-1 py-1 border rounded text-xs"
+                                  >
+                                    {[1, 2, 3, 4, 5].map(w => <option key={w} value={w}>W{w}</option>)}
+                                  </select>
+                                </div>
+                                <div className="flex gap-2">
+                                  <button onClick={saveEditTask} className="flex-1 px-2 py-1 bg-green-600 text-white rounded text-xs">
+                                    <Check className="w-3 h-3 inline" />
+                                  </button>
+                                  <button onClick={cancelEditTask} className="flex-1 px-2 py-1 bg-gray-400 text-white rounded text-xs">
+                                    <X className="w-3 h-3 inline" />
+                                  </button>
+                                </div>
                               </div>
-                            </div>
-                            <button 
-                              onClick={() => deleteTask(task.id)} 
-                              className="opacity-0 group-hover:opacity-100 text-red-500 hover:text-red-700 no-print"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
+                            ) : (
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-2 flex-1">
+                                  {task.subtasks.length > 0 && (
+                                    <button 
+                                      onClick={() => toggleExpand(task.id)} 
+                                      className="text-gray-600 no-print"
+                                    >
+                                      {task.expanded ? (
+                                        <ChevronDown className="w-4 h-4" />
+                                      ) : (
+                                        <ChevronRight className="w-4 h-4" />
+                                      )}
+                                    </button>
+                                  )}
+                                  <div className="flex-1">
+                                    <div className="text-sm font-semibold text-gray-800">{task.name}</div>
+                                    {task.subtasks.length > 0 && (
+                                      <div className="flex items-center gap-2 mt-1">
+                                        <div className="flex-1 bg-gray-200 rounded-full h-2">
+                                          <div 
+                                            className={`h-2 rounded-full ${getProgressColor(progress)}`} 
+                                            style={{ width: `${progress}%` }} 
+                                          />
+                                        </div>
+                                        <span className="text-xs text-gray-600">{progress}%</span>
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                                <div className="flex gap-1 opacity-0 group-hover:opacity-100 no-print">
+                                  <button onClick={() => startEditTask(task)} className="text-blue-500 hover:text-blue-700">
+                                    <Edit2 className="w-4 h-4" />
+                                  </button>
+                                  <button onClick={() => deleteTask(task.id)} className="text-red-500 hover:text-red-700">
+                                    <Trash2 className="w-4 h-4" />
+                                  </button>
+                                </div>
+                              </div>
+                            )}
                           </div>
                         </div>
                         <div className="flex relative">
                           {weekPositions.map((wp, idx) => {
                             const milestone = milestones.find(m => {
-                              const mYear = m.month >= 10 && m.month <= 12 ? 2025 : 2026;
-                              const mPos = getWeekPosition(m.month, m.week, mYear);
+                              const mPos = getWeekPosition(m.month, m.week, m.year);
                               return mPos === idx;
                             });
                             
@@ -597,7 +780,7 @@ export default function App() {
                                 className="w-10 flex-shrink-0 border-l border-gray-100 relative h-16"
                               >
                                 {idx >= span.start && idx < span.start + span.duration && (
-                                  <div className={`absolute inset-1 ${task.color} rounded shadow-sm`}>
+                                  <div className={`absolute inset-1 ${task.color} rounded shadow-sm task-bar`}>
                                     {idx === span.start && span.duration > 2 && (
                                       <div className="text-white text-xs px-1 py-1 font-semibold truncate">
                                         {span.duration}w
@@ -610,12 +793,6 @@ export default function App() {
                                     <Flag className="w-4 h-4 text-purple-600 fill-purple-200" />
                                     <div className="hidden group-hover/milestone:block absolute bottom-full left-1/2 transform -translate-x-1/2 mb-1 px-2 py-1 bg-gray-900 text-white text-xs rounded whitespace-nowrap">
                                       {milestone.name}
-                                      <button 
-                                        onClick={() => deleteMilestone(milestone.id)} 
-                                        className="ml-2 text-red-300 hover:text-red-100 no-print"
-                                      >
-                                        ×
-                                      </button>
                                     </div>
                                   </div>
                                 )}
@@ -887,14 +1064,15 @@ export default function App() {
                     onChange={(e) => {
                       if (e.target.value) {
                         const [taskId, subtaskId] = e.target.value.split('-').map(Number);
-                        const task = tasks.find(t => t.id === taskId);
-                        const subtask = task?.subtasks.find(s => s.id === subtaskId);
-                        setSelectedSubtask({ 
-                          taskId: taskId, 
-                          subtaskId: subtaskId, 
-                          taskName: task?.name, 
-                          subtaskName: subtask?.name 
-                        });
+                        const item = allSubtasks.find(s => s.taskId === taskId && s.subtaskId === subtaskId);
+                        if (item) {
+                          setSelectedSubtask({ 
+                            taskId: item.taskId, 
+                            subtaskId: item.subtaskId, 
+                            taskName: item.taskName, 
+                            subtaskName: item.subtaskName 
+                          });
+                        }
                       } else {
                         setSelectedSubtask(null);
                       }
@@ -903,14 +1081,14 @@ export default function App() {
                     disabled={isBreak}
                   >
                     <option value="">-- Select a subtask --</option>
-                    {tasks.map(task => task.subtasks.map(subtask => (
+                    {allSubtasks.map(item => (
                       <option 
-                        key={`${task.id}-${subtask.id}`} 
-                        value={`${task.id}-${subtask.id}`}
+                        key={`${item.taskId}-${item.subtaskId}`} 
+                        value={`${item.taskId}-${item.subtaskId}`}
                       >
-                        {task.name} → {subtask.name}
+                        {item.taskName} → {item.subtaskName}
                       </option>
-                    )))}
+                    ))}
                   </select>
                   {selectedSubtask && !isBreak && (
                     <div className="mt-2 text-xs text-gray-600">
@@ -918,6 +1096,9 @@ export default function App() {
                         {selectedSubtask.taskName} → {selectedSubtask.subtaskName}
                       </span>
                     </div>
+                  )}
+                  {allSubtasks.length === 0 && (
+                    <p className="text-xs text-gray-500 mt-2">Add subtasks to your tasks in the Gantt Chart tab first</p>
                   )}
                 </div>
 
