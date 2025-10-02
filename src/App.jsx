@@ -196,7 +196,10 @@ export default function App() {
   };
 
   const saveEditTask = () => {
-    setTasks(tasks.map(t => t.id === editingTask.id ? editingTask : t));
+    setTasks(tasks.map(t => t.id === editingTask.id ? {
+      ...editingTask,
+      subtasks: editingTask.subtasks || [] // Preserve subtasks
+    } : t));
     setEditingTask(null);
   };
 
@@ -234,7 +237,21 @@ export default function App() {
 
   const addSubtask = (taskId) => {
     if (newSubtask.trim()) {
-      setTasks(tasks.map(task => task.id === taskId ? { ...task, subtasks: [...task.subtasks, { id: Date.now(), name: newSubtask, completed: false }] } : task));
+      console.log('Adding subtask to task:', taskId);
+      const updatedTasks = tasks.map(task => {
+        if (task.id === taskId) {
+          const newSubtaskObj = { id: Date.now(), name: newSubtask, completed: false };
+          const updatedTask = {
+            ...task,
+            subtasks: [...(task.subtasks || []), newSubtaskObj]
+          };
+          console.log('Updated task with new subtask:', updatedTask);
+          return updatedTask;
+        }
+        return task;
+      });
+      console.log('All tasks after adding subtask:', updatedTasks.map(t => ({ id: t.id, name: t.name, subtasks: t.subtasks?.length })));
+      setTasks(updatedTasks);
       setNewSubtask('');
       setAddingSubtaskTo(null);
     }
@@ -248,7 +265,13 @@ export default function App() {
     setTasks(tasks.map(task => task.id === taskId ? { ...task, expanded: !task.expanded } : task));
   };
 
-  const deleteTask = (id) => setTasks(tasks.filter(task => task.id !== id));
+  const deleteTask = (id) => {
+    console.log('Deleting task:', id);
+    console.log('Tasks before delete:', tasks.map(t => ({ id: t.id, name: t.name, subtasks: t.subtasks?.length })));
+    const updatedTasks = tasks.filter(task => task.id !== id);
+    console.log('Tasks after delete:', updatedTasks.map(t => ({ id: t.id, name: t.name, subtasks: t.subtasks?.length })));
+    setTasks(updatedTasks);
+  };
   
   const deleteSubtask = (taskId, subtaskId) => {
     setTasks(tasks.map(task => task.id === taskId ? { ...task, subtasks: task.subtasks.filter(st => st.id !== subtaskId) } : task));
@@ -402,21 +425,27 @@ export default function App() {
     setTimeout(() => setIsPrinting(false), 500);
   };
 
-  // Collect ALL subtasks from ALL tasks - this ensures subtasks always show
-  const allSubtasks = [];
-  tasks.forEach(task => {
-    if (task.subtasks && task.subtasks.length > 0) {
-      task.subtasks.forEach(subtask => {
-        allSubtasks.push({
-          taskId: task.id,
-          subtaskId: subtask.id,
-          taskName: task.name,
-          subtaskName: subtask.name,
-          taskColor: task.color
+  // Use useMemo to properly memoize subtasks collection
+  const allSubtasks = React.useMemo(() => {
+    const subtasksList = [];
+    console.log('Collecting subtasks from tasks:', tasks.length);
+    tasks.forEach(task => {
+      console.log(`Task ${task.name} has subtasks:`, task.subtasks?.length || 0);
+      if (task.subtasks && Array.isArray(task.subtasks) && task.subtasks.length > 0) {
+        task.subtasks.forEach(subtask => {
+          subtasksList.push({
+            taskId: task.id,
+            subtaskId: subtask.id,
+            taskName: task.name,
+            subtaskName: subtask.name,
+            taskColor: task.color
+          });
         });
-      });
-    }
-  });
+      }
+    });
+    console.log('Total subtasks collected:', subtasksList.length);
+    return subtasksList;
+  }, [tasks]);
 
   return (
     <div className="p-6 max-w-full mx-auto bg-gray-50">
@@ -536,6 +565,21 @@ export default function App() {
                 </div>
                 <div className="text-sm text-gray-600">
                   <span className="font-semibold">{timeline.length}</span> months displayed
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-green-50 border border-green-200 rounded-lg p-3 mb-6 no-print">
+              <h3 className="font-semibold mb-2 text-green-900">Debug Info:</h3>
+              <div className="text-sm space-y-1">
+                <div>Total Tasks: <strong>{tasks.length}</strong></div>
+                <div>Total Subtasks Available: <strong>{allSubtasks.length}</strong></div>
+                <div className="text-xs text-gray-600 mt-2">
+                  {tasks.map(t => (
+                    <div key={t.id}>
+                      • {t.name}: {t.subtasks?.length || 0} subtasks
+                    </div>
+                  ))}
                 </div>
               </div>
             </div>
