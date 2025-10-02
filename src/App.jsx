@@ -14,7 +14,15 @@ export default function App() {
   
   const getInitialTasks = () => {
     const saved = localStorage.getItem('phdTimelineTasks');
-    if (saved) return JSON.parse(saved);
+    if (saved) {
+      const parsedTasks = JSON.parse(saved);
+      // Ensure all tasks have subtasks array
+      return parsedTasks.map(task => ({
+        ...task,
+        subtasks: Array.isArray(task.subtasks) ? task.subtasks : [],
+        expanded: task.expanded || false
+      }));
+    }
     return [
       { id: 1, name: 'MGP Paper', startMonth: 10, startYear: 2025, startWeek: 1, endMonth: 12, endYear: 2025, endWeek: 1, color: 'bg-blue-500', priority: 'high', expanded: false, subtasks: [
         { id: 101, name: 'Literature Review', completed: true },
@@ -212,7 +220,14 @@ export default function App() {
   const addTask = () => {
     if (newTask.name.trim()) {
       const colors = ['bg-blue-500', 'bg-purple-500', 'bg-green-500', 'bg-yellow-500', 'bg-orange-500', 'bg-red-500'];
-      setTasks([...tasks, { id: Date.now(), ...newTask, color: colors[Math.floor(Math.random() * colors.length)], expanded: false, subtasks: [] }]);
+      const taskToAdd = {
+        id: Date.now(),
+        ...newTask,
+        color: colors[Math.floor(Math.random() * colors.length)],
+        expanded: false,
+        subtasks: [] // Ensure subtasks array exists
+      };
+      setTasks([...tasks, taskToAdd]);
       setNewTask({ name: '', startMonth: 10, startYear: 2025, startWeek: 1, endMonth: 10, endYear: 2025, endWeek: 4, priority: 'medium' });
     }
   };
@@ -409,27 +424,45 @@ export default function App() {
         @media print {
           @page { 
             size: A4 landscape; 
-            margin: 10mm;
+            margin: 5mm;
+          }
+          * {
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+            color-adjust: exact !important;
           }
           .no-print { display: none !important; }
           body { 
-            print-color-adjust: exact; 
-            -webkit-print-color-adjust: exact;
             margin: 0;
             padding: 0;
+            width: 100%;
           }
           .print-container {
             width: 100%;
-            height: 100%;
-            page-break-inside: avoid;
+            transform: scale(0.85);
+            transform-origin: top left;
           }
           .gantt-table {
-            font-size: 8pt;
+            font-size: 7pt !important;
+          }
+          .gantt-table .text-sm {
+            font-size: 7pt !important;
+          }
+          .gantt-table .text-xs {
+            font-size: 6pt !important;
           }
           .task-bar {
-            print-color-adjust: exact;
-            -webkit-print-color-adjust: exact;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
           }
+          .bg-blue-500 { background-color: #3b82f6 !important; }
+          .bg-purple-500 { background-color: #a855f7 !important; }
+          .bg-green-500 { background-color: #22c55e !important; }
+          .bg-yellow-500 { background-color: #eab308 !important; }
+          .bg-orange-500 { background-color: #f97316 !important; }
+          .bg-red-500 { background-color: #ef4444 !important; }
+          .bg-gray-100 { background-color: #f3f4f6 !important; }
+          .bg-gray-50 { background-color: #f9fafb !important; }
         }
       `}</style>
       
@@ -789,7 +822,14 @@ export default function App() {
                                     </button>
                                   )}
                                   <div className="flex-1">
-                                    <div className="text-sm font-semibold text-gray-800">{task.name}</div>
+                                    <div className="text-sm font-semibold text-gray-800 flex items-center gap-2">
+                                      {task.name}
+                                      {task.subtasks && task.subtasks.length > 0 && (
+                                        <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">
+                                          {task.subtasks.length} subtasks
+                                        </span>
+                                      )}
+                                    </div>
                                     {task.subtasks.length > 0 && (
                                       <div className="flex items-center gap-2 mt-1">
                                         <div className="flex-1 bg-gray-200 rounded-full h-2">
