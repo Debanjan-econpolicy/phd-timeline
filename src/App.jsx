@@ -198,7 +198,7 @@ export default function App() {
   const saveEditTask = () => {
     setTasks(tasks.map(t => t.id === editingTask.id ? {
       ...editingTask,
-      subtasks: editingTask.subtasks || [] // Preserve subtasks
+      subtasks: editingTask.subtasks || []
     } : t));
     setEditingTask(null);
   };
@@ -228,7 +228,7 @@ export default function App() {
         ...newTask,
         color: colors[Math.floor(Math.random() * colors.length)],
         expanded: false,
-        subtasks: [] // Ensure subtasks array exists
+        subtasks: []
       };
       setTasks([...tasks, taskToAdd]);
       setNewTask({ name: '', startMonth: 10, startYear: 2025, startWeek: 1, endMonth: 10, endYear: 2025, endWeek: 4, priority: 'medium' });
@@ -266,6 +266,13 @@ export default function App() {
   };
 
   const deleteTask = (id) => {
+    const taskToDelete = tasks.find(t => t.id === id);
+    if (taskToDelete && taskToDelete.subtasks && taskToDelete.subtasks.length > 0) {
+      const confirmDelete = window.confirm(
+        `⚠️ This will delete "${taskToDelete.name}" and all ${taskToDelete.subtasks.length} subtasks. Continue?`
+      );
+      if (!confirmDelete) return;
+    }
     console.log('Deleting task:', id);
     console.log('Tasks before delete:', tasks.map(t => ({ id: t.id, name: t.name, subtasks: t.subtasks?.length })));
     const updatedTasks = tasks.filter(task => task.id !== id);
@@ -425,7 +432,6 @@ export default function App() {
     setTimeout(() => setIsPrinting(false), 500);
   };
 
-  // Use useMemo to properly memoize subtasks collection
   const allSubtasks = React.useMemo(() => {
     const subtasksList = [];
     console.log('Collecting subtasks from tasks:', tasks.length);
@@ -648,6 +654,50 @@ export default function App() {
                 <Plus className="w-4 h-4" />
                 Add Task
               </button>
+            </div>
+
+            <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-4 mb-6 no-print">
+              <h2 className="text-lg font-semibold mb-3 text-indigo-900">Quick Add Subtask</h2>
+              <p className="text-sm text-indigo-700 mb-3">Add a subtask to any main task using the dropdown below</p>
+              <div className="flex gap-3">
+                <select 
+                  value={addingSubtaskTo || ''} 
+                  onChange={(e) => setAddingSubtaskTo(e.target.value ? parseInt(e.target.value) : null)} 
+                  className="px-3 py-2 border border-gray-300 rounded-md flex-shrink-0"
+                  style={{ minWidth: '200px' }}
+                >
+                  <option value="">-- Select Main Task --</option>
+                  {tasks.map(task => (
+                    <option key={task.id} value={task.id}>
+                      {task.name}
+                    </option>
+                  ))}
+                </select>
+                <input 
+                  type="text" 
+                  placeholder="Enter subtask name..." 
+                  value={newSubtask} 
+                  onChange={(e) => setNewSubtask(e.target.value)} 
+                  onKeyPress={(e) => {
+                    if (e.key === 'Enter' && addingSubtaskTo) {
+                      addSubtask(addingSubtaskTo);
+                    }
+                  }}
+                  className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500" 
+                  disabled={!addingSubtaskTo}
+                />
+                <button 
+                  onClick={() => addingSubtaskTo && addSubtask(addingSubtaskTo)} 
+                  disabled={!addingSubtaskTo || !newSubtask.trim()}
+                  className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center gap-1"
+                >
+                  <Plus className="w-4 h-4" />
+                  Add Subtask
+                </button>
+              </div>
+              {tasks.length === 0 && (
+                <p className="text-sm text-red-600 mt-2">⚠️ Please add at least one main task first</p>
+              )}
             </div>
 
             <div className="mb-4 no-print">
