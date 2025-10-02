@@ -8,7 +8,6 @@ export default function App() {
   const [editingTask, setEditingTask] = useState(null);
   const [editingMilestone, setEditingMilestone] = useState(null);
   
-  // Timeline window controls
   const [timelineStart, setTimelineStart] = useState({ month: 10, year: 2025 });
   const [timelineEnd, setTimelineEnd] = useState({ month: 12, year: 2026 });
   
@@ -16,24 +15,24 @@ export default function App() {
     const saved = localStorage.getItem('phdTimelineTasks');
     if (saved) {
       const parsedTasks = JSON.parse(saved);
-      // Ensure all tasks have subtasks array
       return parsedTasks.map(task => ({
         ...task,
         subtasks: Array.isArray(task.subtasks) ? task.subtasks : [],
-        expanded: task.expanded || false
+        expanded: task.expanded || false,
+        notes: task.notes || ''
       }));
     }
     return [
-      { id: 1, name: 'MGP Paper', startMonth: 10, startYear: 2025, startWeek: 1, endMonth: 12, endYear: 2025, endWeek: 1, color: 'bg-blue-500', priority: 'high', expanded: false, subtasks: [
+      { id: 1, name: 'MGP Paper', startMonth: 10, startYear: 2025, startWeek: 1, endMonth: 12, endYear: 2025, endWeek: 1, color: 'bg-blue-500', priority: 'high', expanded: false, notes: '', subtasks: [
         { id: 101, name: 'Literature Review', completed: true },
         { id: 102, name: 'Data Analysis', completed: true },
         { id: 103, name: 'Writing Draft', completed: false }
       ]},
-      { id: 2, name: 'NEFF Paper', startMonth: 12, startYear: 2025, startWeek: 2, endMonth: 2, endYear: 2026, endWeek: 2, color: 'bg-purple-500', priority: 'medium', expanded: false, subtasks: [
+      { id: 2, name: 'NEFF Paper', startMonth: 12, startYear: 2025, startWeek: 2, endMonth: 2, endYear: 2026, endWeek: 2, color: 'bg-purple-500', priority: 'medium', expanded: false, notes: '', subtasks: [
         { id: 201, name: 'Research Design', completed: false },
         { id: 202, name: 'Data Collection', completed: false }
       ]},
-      { id: 3, name: 'Honesty Paper', startMonth: 11, startYear: 2025, startWeek: 3, endMonth: 3, endYear: 2026, endWeek: 4, color: 'bg-orange-500', priority: 'low', expanded: false, subtasks: [] }
+      { id: 3, name: 'Honesty Paper', startMonth: 11, startYear: 2025, startWeek: 3, endMonth: 3, endYear: 2026, endWeek: 4, color: 'bg-orange-500', priority: 'low', expanded: false, notes: '', subtasks: [] }
     ];
   };
 
@@ -191,6 +190,14 @@ export default function App() {
     return 'bg-red-500';
   };
 
+  const isDeadlineNear = (task) => {
+    const today = new Date();
+    const endDate = new Date(task.endYear, task.endMonth - 1, task.endWeek * 7);
+    const diffTime = endDate - today;
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    return diffDays >= 0 && diffDays <= 14;
+  };
+
   const startEditTask = (task) => {
     setEditingTask({ ...task });
   };
@@ -198,7 +205,8 @@ export default function App() {
   const saveEditTask = () => {
     setTasks(tasks.map(t => t.id === editingTask.id ? {
       ...editingTask,
-      subtasks: editingTask.subtasks || []
+      subtasks: editingTask.subtasks || [],
+      notes: editingTask.notes || ''
     } : t));
     setEditingTask(null);
   };
@@ -228,7 +236,8 @@ export default function App() {
         ...newTask,
         color: colors[Math.floor(Math.random() * colors.length)],
         expanded: false,
-        subtasks: []
+        subtasks: [],
+        notes: ''
       };
       setTasks([...tasks, taskToAdd]);
       setNewTask({ name: '', startMonth: 10, startYear: 2025, startWeek: 1, endMonth: 10, endYear: 2025, endWeek: 4, priority: 'medium' });
@@ -237,7 +246,6 @@ export default function App() {
 
   const addSubtask = (taskId) => {
     if (newSubtask.trim()) {
-      console.log('Adding subtask to task:', taskId);
       const updatedTasks = tasks.map(task => {
         if (task.id === taskId) {
           const newSubtaskObj = { id: Date.now(), name: newSubtask, completed: false };
@@ -245,12 +253,10 @@ export default function App() {
             ...task,
             subtasks: [...(task.subtasks || []), newSubtaskObj]
           };
-          console.log('Updated task with new subtask:', updatedTask);
           return updatedTask;
         }
         return task;
       });
-      console.log('All tasks after adding subtask:', updatedTasks.map(t => ({ id: t.id, name: t.name, subtasks: t.subtasks?.length })));
       setTasks(updatedTasks);
       setNewSubtask('');
       setAddingSubtaskTo(null);
@@ -273,10 +279,7 @@ export default function App() {
       );
       if (!confirmDelete) return;
     }
-    console.log('Deleting task:', id);
-    console.log('Tasks before delete:', tasks.map(t => ({ id: t.id, name: t.name, subtasks: t.subtasks?.length })));
     const updatedTasks = tasks.filter(task => task.id !== id);
-    console.log('Tasks after delete:', updatedTasks.map(t => ({ id: t.id, name: t.name, subtasks: t.subtasks?.length })));
     setTasks(updatedTasks);
   };
   
@@ -434,9 +437,7 @@ export default function App() {
 
   const allSubtasks = React.useMemo(() => {
     const subtasksList = [];
-    console.log('Collecting subtasks from tasks:', tasks.length);
     tasks.forEach(task => {
-      console.log(`Task ${task.name} has subtasks:`, task.subtasks?.length || 0);
       if (task.subtasks && Array.isArray(task.subtasks) && task.subtasks.length > 0) {
         task.subtasks.forEach(subtask => {
           subtasksList.push({
@@ -449,7 +450,6 @@ export default function App() {
         });
       }
     });
-    console.log('Total subtasks collected:', subtasksList.length);
     return subtasksList;
   }, [tasks]);
 
@@ -542,6 +542,30 @@ export default function App() {
 
         {activeTab === 'gantt' && (
           <>
+            {tasks.filter(t => isDeadlineNear(t)).length > 0 && (
+              <div className="bg-red-50 border-2 border-red-400 rounded-lg p-4 mb-6 no-print animate-pulse">
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="text-2xl">⚠️</span>
+                  <h3 className="font-bold text-red-900">URGENT: Deadlines Within 2 Weeks!</h3>
+                </div>
+                <div className="space-y-2">
+                  {tasks.filter(t => isDeadlineNear(t)).map(task => {
+                    const endDate = new Date(task.endYear, task.endMonth - 1, task.endWeek * 7);
+                    const today = new Date();
+                    const daysLeft = Math.ceil((endDate - today) / (1000 * 60 * 60 * 24));
+                    return (
+                      <div key={task.id} className="flex items-center justify-between bg-white p-2 rounded border border-red-300">
+                        <span className="font-semibold text-red-800">{task.name}</span>
+                        <span className="text-sm text-red-600 font-bold">
+                          {daysLeft} day{daysLeft !== 1 ? 's' : ''} left
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+            
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6 no-print">
               <h3 className="font-semibold mb-3 text-blue-900">Timeline Window Settings</h3>
               <div className="flex items-center gap-4">
@@ -571,21 +595,6 @@ export default function App() {
                 </div>
                 <div className="text-sm text-gray-600">
                   <span className="font-semibold">{timeline.length}</span> months displayed
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-green-50 border border-green-200 rounded-lg p-3 mb-6 no-print">
-              <h3 className="font-semibold mb-2 text-green-900">Debug Info:</h3>
-              <div className="text-sm space-y-1">
-                <div>Total Tasks: <strong>{tasks.length}</strong></div>
-                <div>Total Subtasks Available: <strong>{allSubtasks.length}</strong></div>
-                <div className="text-xs text-gray-600 mt-2">
-                  {tasks.map(t => (
-                    <div key={t.id}>
-                      • {t.name}: {t.subtasks?.length || 0} subtasks
-                    </div>
-                  ))}
                 </div>
               </div>
             </div>
@@ -841,10 +850,11 @@ export default function App() {
                   const span = getTaskSpan(task);
                   const progress = calculateProgress(task);
                   const isEditing = editingTask?.id === task.id;
+                  const deadlineNear = isDeadlineNear(task);
                   
                   return (
                     <div key={task.id}>
-                      <div className="flex border-b border-gray-200 hover:bg-blue-50 group">
+                      <div className={`flex border-b border-gray-200 hover:bg-blue-50 group ${deadlineNear ? 'bg-red-50' : ''}`}>
                         <div className="w-64 flex-shrink-0 bg-white sticky left-0 border-r border-gray-300">
                           <div className="p-3">
                             {isEditing ? (
@@ -854,6 +864,13 @@ export default function App() {
                                   value={editingTask.name}
                                   onChange={(e) => setEditingTask({ ...editingTask, name: e.target.value })}
                                   className="w-full px-2 py-1 border rounded text-sm"
+                                />
+                                <textarea
+                                  value={editingTask.notes || ''}
+                                  onChange={(e) => setEditingTask({ ...editingTask, notes: e.target.value })}
+                                  placeholder="Notes & comments..."
+                                  className="w-full px-2 py-1 border rounded text-xs resize-none"
+                                  rows="2"
                                 />
                                 <div className="flex gap-2">
                                   <input 
@@ -923,6 +940,11 @@ export default function App() {
                                           {task.subtasks.length} subtasks
                                         </span>
                                       )}
+                                      {deadlineNear && (
+                                        <span className="text-xs bg-red-500 text-white px-2 py-0.5 rounded-full font-bold animate-pulse">
+                                          ⚠️ Due Soon!
+                                        </span>
+                                      )}
                                     </div>
                                     {task.subtasks.length > 0 && (
                                       <div className="flex items-center gap-2 mt-1">
@@ -986,6 +1008,31 @@ export default function App() {
 
                       {task.expanded && (
                         <>
+                          {task.notes !== undefined && (
+                            <div className="flex border-b border-gray-200 bg-yellow-50">
+                              <div className="w-64 flex-shrink-0 p-3 border-r border-gray-300">
+                                <div className="text-xs font-semibold text-gray-700 mb-2">📝 Notes & Comments:</div>
+                                <textarea
+                                  value={task.notes}
+                                  onChange={(e) => {
+                                    setTasks(tasks.map(t => t.id === task.id ? { ...t, notes: e.target.value } : t));
+                                  }}
+                                  placeholder="Add meeting notes, ideas, links, references..."
+                                  className="w-full px-2 py-1 text-xs border border-gray-300 rounded resize-none"
+                                  rows="3"
+                                />
+                              </div>
+                              <div className="flex">
+                                {weekPositions.map((wp, idx) => (
+                                  <div 
+                                    key={idx} 
+                                    className="w-10 flex-shrink-0 border-l border-gray-200 h-20"
+                                  />
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                          
                           {task.subtasks.map(subtask => (
                             <div 
                               key={subtask.id} 
